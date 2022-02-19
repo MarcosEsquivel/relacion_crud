@@ -2,6 +2,7 @@ const path = require('path');
 const db = require('../database/models');
 const sequelize = db.sequelize;
 const { Op } = require("sequelize");
+const { promiseImpl } = require('ejs');
 
 
 //Aqui tienen una forma de llamar a cada uno de los modelos
@@ -74,10 +75,18 @@ const moviesController = {
     },
 
     edit: function(req,res) {
-        db.Movie.findByPk(req.params.id)
-        .then(Movie => {
+        const Movie = db.Movie.findOne({
+    where: {id: req.params.id},
+    include: [{association: 'genre'}]
+        })
+
+        const allGenres = db.Genre.findAll()
+
+        Promise.all([Movie, allGenres])
+     /*    .then(Movie => {
             db.Genre.findAll()
             .then(genres => { 
+
                 Movie.genre = genres.find(genre => genre.id === Movie.genre_id)
                 res.render('moviesEdit', {Movie, allGenres: genres})
                     
@@ -86,6 +95,10 @@ const moviesController = {
                 res.send(err)
             })          
 
+        }) */
+        .then((respuesta) => {
+            
+         res.render('moviesEdit', {Movie: respuesta[0], allGenres: respuesta[1]})
         })
         .catch(err => {
             res.send(err)
@@ -93,14 +106,51 @@ const moviesController = {
         
     },
     update: function (req,res) {
+        
+    db.Movie.update(req.body,
+    {
+    where: {id: req.params.id}
+      })
+
+      .then(result => {
+            if (result !== 0) {
+                res.redirect(`/movies/detail/${req.params.id}`)
+            } else {
+                res.send('No se modifico nada')
+            }
+       })
+
+       .catch(err => {
+           res.send(err)
+       })
+
 
     },
     delete: function (req,res) {
+    db.Movie.findByPk(req.params.id)
 
+    .then(Movie =>{
+res.render('moviesDelete', {Movie})
+    })
+
+    .catch(err => {
+        res.send(err)
+    })
     },
     destroy: function (req,res) {
+    db.Movie.destroy({
+        where: {id: req.params.id}
+    })
 
-    }
+    .then(result =>{
+        res.redirect('/movies')
+            })
+        
+            .catch(err => {
+                res.send(err)
+            })
+
+  }
 }
 
 module.exports = moviesController;
